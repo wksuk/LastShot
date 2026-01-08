@@ -1,0 +1,504 @@
+﻿<Window x:Class="LastShot.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:models="clr-namespace:LastShot.Models"
+        mc:Ignorable="d"
+        Title="WKSUK Compliance Dashboard"
+        Height="820"
+        Width="1350"
+        Background="{DynamicResource SurfaceBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        </Style>
+        <Style x:Key="MetricValueStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="36" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="MetricLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style x:Key="ErrorTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Visibility" Value="Visible" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LastError}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding LastError}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <ObjectDataProvider x:Key="RadioStatusValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:RadioStatus" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider x:Key="ContractTypeValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:RentalContractType" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider x:Key="ComplianceActionValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:ComplianceActionType" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="{Binding HeaderTitle}" FontSize="30" FontWeight="Bold" />
+                <TextBlock Text="{Binding HeaderSubtitle}" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0,0,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4">
+                        <TextBlock Text="Last sync:" Foreground="{DynamicResource SecondaryTextBrush}" />
+                    </Border>
+                    <TextBlock Text="{Binding LastUpdatedDisplay}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Updating..."
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <ProgressBar Width="140"
+                                 Height="6"
+                                 Margin="8,0,12,0"
+                                 IsIndeterminate="True"
+                                 Background="{DynamicResource CardBorderBrush}"
+                                 Foreground="{DynamicResource AccentBrush}"
+                                 Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+                <Button Width="140"
+                        Height="38"
+                        Content="Refresh"
+                        Command="{Binding RefreshCommand}"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        FontWeight="SemiBold"
+                        BorderThickness="0"
+                        Cursor="Hand" />
+                <Button Width="110"
+                        Height="32"
+                        Margin="12,3,0,0"
+                        Content="About"
+                        Click="OnAboutClicked"
+                        Background="{DynamicResource CardBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        Foreground="{DynamicResource PrimaryTextBrush}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Status/Error line -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorTextStyle}" />
+            <TextBlock Grid.Column="1"
+                       Text="Offline-friendly local SQLite store"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       FontStyle="Italic" />
+        </Grid>
+
+        <!-- Workspace -->
+        <TabControl Grid.Row="2" Background="{DynamicResource SurfaceBrush}">
+            <!-- Dashboard Tab -->
+            <TabItem Header="Dashboard">
+                <Border Background="{DynamicResource SurfaceBrush}" Padding="0" BorderThickness="0">
+                    <Grid Margin="0,8,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="0,0,0,16" HorizontalAlignment="Stretch">
+                            <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,16,0">
+                                <StackPanel>
+                                    <TextBlock Text="Active rentals" Style="{StaticResource MetricLabelStyle}" />
+                                    <TextBlock Text="{Binding ActiveRentals}" Style="{StaticResource MetricValueStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,16,0">
+                                <StackPanel>
+                                    <TextBlock Text="Upcoming expirations (14d)" Style="{StaticResource MetricLabelStyle}" />
+                                    <TextBlock Text="{Binding UpcomingExpirations}" Style="{StaticResource MetricValueStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,16,0">
+                                <StackPanel>
+                                    <TextBlock Text="Radios ready to hire" Style="{StaticResource MetricLabelStyle}" />
+                                    <TextBlock Text="{Binding AvailableRadios}" Style="{StaticResource MetricValueStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="Compliance events this month" Style="{StaticResource MetricLabelStyle}" />
+                                    <TextBlock Text="{Binding ComplianceEventsThisMonth}" Style="{StaticResource MetricValueStyle}" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                        <Border Grid.Row="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,12">
+                                    <TextBlock Text="Expirations watch" FontSize="20" FontWeight="SemiBold" />
+                                    <TextBlock Text="Next 14 days" Foreground="{DynamicResource SecondaryTextBrush}" Margin="12,4,0,0" />
+                                </StackPanel>
+                                <Grid Grid.Row="1">
+                                    <ListView ItemsSource="{Binding ExpiringContracts}" Background="Transparent" BorderThickness="0">
+                                        <ListView.Resources>
+                                            <Style TargetType="ListViewItem">
+                                                <Setter Property="Padding" Value="8" />
+                                                <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                                            </Style>
+                                        </ListView.Resources>
+                                        <ListView.View>
+                                            <GridView AllowsColumnReorder="False">
+                                                <GridViewColumn Header="Customer" DisplayMemberBinding="{Binding CustomerName}" Width="250" />
+                                                <GridViewColumn Header="Contract" DisplayMemberBinding="{Binding ContractType}" Width="180" />
+                                                <GridViewColumn Header="End date" DisplayMemberBinding="{Binding EndDateLocal}" Width="160" />
+                                                <GridViewColumn Header="Status" DisplayMemberBinding="{Binding RemainingDisplay}" Width="220" />
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                    <TextBlock Text="No expirations scheduled in the next 14 days."
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               FontStyle="Italic"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding UpcomingExpirations}" Value="0">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- Customers Tab -->
+            <TabItem Header="Customers">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="1.2*" />
+                    </Grid.ColumnDefinitions>
+                    <DataGrid Grid.Column="0"
+                              ItemsSource="{Binding Customers}"
+                              SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Background="{DynamicResource CardBrush}"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              BorderThickness="0"
+                              RowBackground="{DynamicResource SurfaceBrush}"
+                              AlternatingRowBackground="{DynamicResource CardBrush}"
+                              HeadersVisibility="Column"
+                              Margin="0,0,16,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Business" Binding="{Binding BusinessType}" Width="*" />
+                            <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*" />
+                            <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Customer details" FontWeight="SemiBold" FontSize="18" />
+                                <TextBlock Text="Name" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.Name, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Business type" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.BusinessType, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Email" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.Email, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Phone" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.Phone, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Address line 1" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.AddressLine1, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Address line 2" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.AddressLine2, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Town or city" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.TownOrCity, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Postcode" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingCustomer.Postcode, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                                    <Button Content="New" Command="{Binding NewCustomerCommand}" Width="80" Margin="0,0,8,0" />
+                                    <Button Content="Save" Command="{Binding SaveCustomerCommand}" Width="80" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" />
+                                    <Button Content="Delete" Command="{Binding DeleteCustomerCommand}" Width="80" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Radio Assets Tab -->
+            <TabItem Header="Radio assets">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="1.2*" />
+                    </Grid.ColumnDefinitions>
+                    <DataGrid Grid.Column="0"
+                              ItemsSource="{Binding RadioAssets}"
+                              SelectedItem="{Binding SelectedRadioAsset, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Background="{DynamicResource CardBrush}"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              BorderThickness="0"
+                              RowBackground="{DynamicResource SurfaceBrush}"
+                              AlternatingRowBackground="{DynamicResource CardBrush}"
+                              HeadersVisibility="Column"
+                              Margin="0,0,16,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="*" />
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                            <DataGridTextColumn Header="Power (W)" Binding="{Binding PowerOutputWatts}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Radio details" FontWeight="SemiBold" FontSize="18" />
+                                <TextBlock Text="Serial number" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRadioAsset.SerialNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Model" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRadioAsset.Model, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Frequency capability" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRadioAsset.FrequencyCapability, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Power output (Watts)" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRadioAsset.PowerOutputWatts, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Antenna type" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRadioAsset.AntennaType, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Status" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding Source={StaticResource RadioStatusValues}}"
+                                          SelectedItem="{Binding EditingRadioAsset.Status}" />
+                                <CheckBox Content="IR2044 compliant"
+                                          Margin="0,12,0,0"
+                                          IsChecked="{Binding EditingRadioAsset.IsIr2044Compliant}" />
+                                <TextBlock Text="Last service" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <DatePicker SelectedDate="{Binding EditingRadioAsset.LastServiceDateUtc}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                                    <Button Content="New" Command="{Binding NewRadioAssetCommand}" Width="80" Margin="0,0,8,0" />
+                                    <Button Content="Save" Command="{Binding SaveRadioAssetCommand}" Width="80" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" />
+                                    <Button Content="Delete" Command="{Binding DeleteRadioAssetCommand}" Width="80" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Frequency Tab -->
+            <TabItem Header="Frequencies">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="1.2*" />
+                    </Grid.ColumnDefinitions>
+                    <DataGrid Grid.Column="0"
+                              ItemsSource="{Binding FrequencyChannels}"
+                              SelectedItem="{Binding SelectedFrequencyChannel, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Background="{DynamicResource CardBrush}"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              BorderThickness="0"
+                              RowBackground="{DynamicResource SurfaceBrush}"
+                              AlternatingRowBackground="{DynamicResource CardBrush}"
+                              HeadersVisibility="Column"
+                              Margin="0,0,16,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="*" />
+                            <DataGridTextColumn Header="Frequency (MHz)" Binding="{Binding FrequencyMHz}" Width="*" />
+                            <DataGridTextColumn Header="Bandwidth (kHz)" Binding="{Binding BandwidthKHz}" Width="*" />
+                            <DataGridCheckBoxColumn Header="Dual" Binding="{Binding IsDualFrequency}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Frequency detail" FontWeight="SemiBold" FontSize="18" />
+                                <TextBlock Text="Label" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingFrequency.Label, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Frequency (MHz)" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingFrequency.FrequencyMHz, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Bandwidth (kHz)" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingFrequency.BandwidthKHz, UpdateSourceTrigger=PropertyChanged}" />
+                                <CheckBox Content="Dual frequency" Margin="0,12,0,0" IsChecked="{Binding EditingFrequency.IsDualFrequency}" />
+                                <TextBlock Text="Notes" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingFrequency.Notes, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                                    <Button Content="New" Command="{Binding NewFrequencyChannelCommand}" Width="80" Margin="0,0,8,0" />
+                                    <Button Content="Save" Command="{Binding SaveFrequencyChannelCommand}" Width="80" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" />
+                                    <Button Content="Delete" Command="{Binding DeleteFrequencyChannelCommand}" Width="80" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Rentals Tab -->
+            <TabItem Header="Rental contracts">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+                    <DataGrid Grid.Column="0"
+                              ItemsSource="{Binding RentalContracts}"
+                              SelectedItem="{Binding SelectedRentalContract, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Background="{DynamicResource CardBrush}"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              BorderThickness="0"
+                              RowBackground="{DynamicResource SurfaceBrush}"
+                              AlternatingRowBackground="{DynamicResource CardBrush}"
+                              HeadersVisibility="Column"
+                              Margin="0,0,16,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Contract" Binding="{Binding ContractNumber}" Width="*" />
+                            <DataGridTextColumn Header="Customer" Binding="{Binding Customer.Name}" Width="*" />
+                            <DataGridTextColumn Header="Radio" Binding="{Binding RadioAsset.SerialNumber}" Width="*" />
+                            <DataGridTextColumn Header="Frequency" Binding="{Binding FrequencyChannel.Label}" Width="*" />
+                            <DataGridTextColumn Header="Start" Binding="{Binding StartDateUtc, StringFormat=dd MMM yyyy}" Width="*" />
+                            <DataGridTextColumn Header="End" Binding="{Binding EndDateUtc, StringFormat=dd MMM yyyy}" Width="*" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding ContractType}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Contract details" FontWeight="SemiBold" FontSize="18" />
+                                <TextBlock Text="Contract number" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRentalContract.ContractNumber, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Contract type" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding Source={StaticResource ContractTypeValues}}"
+                                          SelectedItem="{Binding EditingRentalContract.ContractType}" />
+                                <TextBlock Text="Customer" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding Customers}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="Name"
+                                          SelectedValue="{Binding EditingRentalContract.CustomerId}" />
+                                <TextBlock Text="Radio" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding RadioAssets}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="SerialNumber"
+                                          SelectedValue="{Binding EditingRentalContract.RadioAssetId}" />
+                                <TextBlock Text="Frequency" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding FrequencyChannels}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="Label"
+                                          SelectedValue="{Binding EditingRentalContract.FrequencyChannelId}" />
+                                <TextBlock Text="Start date" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <DatePicker SelectedDate="{Binding EditingRentalContract.StartDateUtc}" />
+                                <TextBlock Text="End date" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <DatePicker SelectedDate="{Binding EditingRentalContract.EndDateUtc}" />
+                                <CheckBox Content="Notification confirmed" Margin="0,12,0,0" IsChecked="{Binding EditingRentalContract.NotificationConfirmed}" />
+                                <TextBlock Text="Radio model" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRentalContract.RadioModel, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Codeplug path" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRentalContract.CodeplugPath, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Comments" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingRentalContract.Comments, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                                    <Button Content="New" Command="{Binding NewRentalContractCommand}" Width="80" Margin="0,0,8,0" />
+                                    <Button Content="Save" Command="{Binding SaveRentalContractCommand}" Width="80" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" />
+                                    <Button Content="Delete" Command="{Binding DeleteRentalContractCommand}" Width="80" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Compliance Logs Tab -->
+            <TabItem Header="Compliance logs">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+                    <DataGrid Grid.Column="0"
+                              ItemsSource="{Binding ComplianceLogs}"
+                              SelectedItem="{Binding SelectedComplianceLog, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Background="{DynamicResource CardBrush}"
+                              Foreground="{DynamicResource PrimaryTextBrush}"
+                              BorderThickness="0"
+                              RowBackground="{DynamicResource SurfaceBrush}"
+                              AlternatingRowBackground="{DynamicResource CardBrush}"
+                              HeadersVisibility="Column"
+                              Margin="0,0,16,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding TimestampUtc, StringFormat=dd MMM yyyy HH:mm}" Width="*" />
+                            <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="*" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" />
+                            <DataGridTextColumn Header="Contract" Binding="{Binding RentalContract.ContractNumber}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Log entry" FontWeight="SemiBold" FontSize="18" />
+                                <TextBlock Text="Timestamp" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <DatePicker SelectedDate="{Binding EditingComplianceLog.TimestampUtc}" />
+                                <TextBlock Text="Action type" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding Source={StaticResource ComplianceActionValues}}"
+                                          SelectedItem="{Binding EditingComplianceLog.ActionType}" />
+                                <TextBlock Text="Description" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingComplianceLog.Description, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" Height="100" TextWrapping="Wrap" />
+                                <TextBlock Text="Evidence path" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <TextBox Text="{Binding EditingComplianceLog.EvidencePath, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="Related contract" Style="{StaticResource MetricLabelStyle}" Margin="0,12,0,0" />
+                                <ComboBox ItemsSource="{Binding RentalContracts}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="ContractNumber"
+                                          SelectedValue="{Binding EditingComplianceLog.RentalContractId}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                                    <Button Content="New" Command="{Binding NewComplianceLogCommand}" Width="80" Margin="0,0,8,0" />
+                                    <Button Content="Save" Command="{Binding SaveComplianceLogCommand}" Width="80" Margin="0,0,8,0" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" />
+                                    <Button Content="Delete" Command="{Binding DeleteComplianceLogCommand}" Width="80" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
