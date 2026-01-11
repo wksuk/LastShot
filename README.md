@@ -2,6 +2,8 @@
 
 A Windows desktop app for managing radio-hire customers, spectrum assets, rental paperwork, and Ofcom compliance tasks in one place. It is built with .NET 9 (WPF) and ships with a local SQLite store so you can stay productive even when you are offline.
 
+![WKSUK Compliance Dashboard](docs/screenshots/main.png)
+
 ## Features
 - **Compliance-first dashboard** that surfaces active hires, radios ready to deploy, expirations inside 14 days, and this month's compliance events.
 - **Rich CRUD tooling** for customers, radio assets, licensed frequency channels, rental contracts, and compliance log entries.
@@ -33,14 +35,14 @@ The first launch will create `%AppData%\LastShot\lastshot.db`, seed it with samp
 Delete `%AppData%\LastShot\lastshot.db` (while the app is closed). The next run will recreate it with the default seed data.
 
 ## Project layout
-- `LastShot/` – WPF application entry point, views, and application resources
-  - `App.xaml.cs` – host/bootstrapper, SQLite configuration, seed data
-  - `MainWindow.xaml*` – primary shell, dashboards, tabbed CRUD experiences
-  - `AboutWindow.xaml*` – About dialog with project + author links
-- `ViewModels/` – `MainViewModel` and supporting records (CommunityToolkit MVVM)
-- `Models/` – Entity classes, enums, and dashboard DTOs shared between UI and EF Core
-- `Data/` – `LastShotDbContext` plus configuration rules for EF Core
-- `Services/` – `ComplianceDataService` + interface used by the view-model
+- `LastShot/` â€“ WPF application entry point, views, and application resources
+  - `App.xaml.cs` â€“ host/bootstrapper, SQLite configuration, seed data
+  - `MainWindow.xaml*` â€“ primary shell, dashboards, tabbed CRUD experiences
+  - `AboutWindow.xaml*` â€“ About dialog with project + author links
+- `ViewModels/` â€“ `MainViewModel` and supporting records (CommunityToolkit MVVM)
+- `Models/` â€“ Entity classes, enums, and dashboard DTOs shared between UI and EF Core
+- `Data/` â€“ `LastShotDbContext` plus configuration rules for EF Core
+- `Services/` â€“ `ComplianceDataService` + interface used by the view-model
 
 ## Roadmap ideas
 - Add export/import for contracts and compliance logs
